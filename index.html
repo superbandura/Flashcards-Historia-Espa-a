@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashcards Historia de España</title>
+  <style>
+    /* styles.css - Estilos principales y animaciones para la app de flashcards */
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      background: #e3f0ff;
+      color: #222;
+    }
+    header {
+      text-align: center;
+      padding: 2rem 1rem 1rem 1rem;
+    }
+    .progress-container {
+      width: 100%;
+      max-width: 400px;
+      margin: 1rem auto 0 auto;
+      background: #e0e0e0;
+      border-radius: 20px;
+      height: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .progress-bar {
+      background: linear-gradient(90deg, #4caf50 60%, #81c784 100%);
+      height: 100%;
+      width: 0%;
+      border-radius: 20px 0 0 20px;
+      transition: width 0.4s;
+    }
+    #progress-text {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: 0.95rem;
+      color: #333;
+      line-height: 24px;
+      z-index: 2;
+    }
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 2rem;
+    }
+    .flashcards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 170px);
+      grid-template-rows: repeat(3, 220px);
+      gap: 56px;
+      margin: 2rem 0 1.5rem 0;
+      justify-content: center;
+    }
+    @media (max-width: 800px) {
+      .flashcards-grid {
+        grid-template-columns: repeat(3, 100px);
+        grid-template-rows: repeat(4, 120px);
+      }
+    }
+    @media (max-width: 500px) {
+      .flashcards-grid {
+        grid-template-columns: repeat(1, 90vw);
+        grid-template-rows: repeat(12, 120px);
+        gap: 36px;
+      }
+    }
+    .flashcard {
+      perspective: 900px;
+      cursor: pointer;
+      position: relative;
+      margin: 12px;
+    }
+    .flashcard-inner {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      transition: transform 0.6s cubic-bezier(.4,2,.6,1);
+      transform-style: preserve-3d;
+    }
+    .flashcard.flipped .flashcard-inner {
+      transform: rotateY(180deg);
+    }
+    .flashcard-front, .flashcard-back {
+      background: #bdbdbd;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      font-size: 1.05rem;
+      text-align: center;
+      user-select: none;
+      flex-direction: column;
+      transition: background 0.3s;
+    }
+    .flashcard-concept {
+      font-weight: bold;
+      font-size: 1.08rem;
+      margin-bottom: 0.6em;
+    }
+    .flashcard-definition {
+      font-weight: normal;
+      font-size: 0.93rem;
+      color: #2a2a2a;
+    }
+    .flashcard-front {
+      /* background heredado de .flashcard-front, .flashcard-back */
+    }
+    .flashcard-back {
+      /* background heredado de .flashcard-front, .flashcard-back */
+      transform: rotateY(180deg);
+    }
+    .flashcard.known .flashcard-front,
+    .flashcard.known .flashcard-back {
+      background: #d2f8df !important;
+    }
+    .flashcard.known {
+      border: 3px solid #4caf50;
+      box-shadow: 0 0 12px #4caf5066;
+    }
+    .flashcard.unknown .flashcard-front,
+    .flashcard.unknown .flashcard-back {
+      background: #ffe1e1 !important;
+    }
+    .flashcard.unknown {
+      border: 3px solid #e53935;
+      box-shadow: 0 0 10px #e5393550;
+    }
+    .btn-reload {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.8rem 1.7rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 2px 8px #1976d22a;
+      transition: background 0.2s;
+      margin-bottom: 1.2rem;
+      margin-top: 2.5rem;
+    }
+    .btn-reload:hover {
+      background: #1565c0;
+    }
+    footer {
+      text-align: center;
+      color: #aaa;
+      font-size: 0.95rem;
+      padding-bottom: 0.7rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Flashcards: Historia de España</h1>
+    <div class="progress-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="flashcards-grid" id="flashcards-grid">
+      <!-- Las cartas se renderizan aquí dinámicamente -->
+    </div>
+    <button class="btn-reload" id="btn-reload">Reiniciar</button>
+  </main>
+
+  <footer>
+    <small>App SPA en Vanilla JS. &copy; 2025</small>
+  </footer>
+
+  <script>
+    // =================== CONFIGURACIÓN Y DATOS ===================
+    const TOTAL_CARDS = 12;
+    const FLASHCARDS_DATA = [
+      { question: "Afrancesados", answer: "españoles que apoyaron las ideas ilustradas y la ocupación napoleónica, buscando modernizar el país" },
+      { question: "Soberanía compartida", answer: "Poder político repartido entre el rey y las Cortes, típico del sistema constitucional moderado" },
+      { question: "Soberanía nacional", answer: "Principio según el cual el poder reside en la nación, representada por los ciudadanos" },
+      { question: "Cortes", answer: "Asamblea representativa con funciones legislativas; en el liberalismo, expresan la voluntad nacional" },
+      { question: "Juntas", answer: "Órganos locales de poder surgidos durante la Guerra de Independencia para organizar la resistencia contra los franceses" },
+      { question: "Monarquía parlamentaria", answer: "Sistema en el que el rey reina pero no gobierna, y el poder lo ejercen las Cortes y el gobierno" },
+      { question: "Sufragio censitario", answer: "Derecho al voto limitado a quienes tienen una renta o nivel económico mínimo" },
+      { question: "Sufragio universal", answer: "Derecho al voto para todos los ciudadanos varones adultos, sin importar su nivel económico" },
+      { question: "Diputación Provincial", answer: "Institución administrativa que coordina y gobierna cada provincia desde el siglo XIX" },
+      { question: "Pronunciamiento", answer: "Levantamiento militar con fines políticos, común en el siglo XIX español" },
+      { question: "Pragmática Sanción", answer: "Decreto que permitió a Isabel II heredar el trono, anulando la Ley Sálica que favorecía a los varones" },
+      { question: "Criollo", answer: "Persona de origen europeo nacida en América; en el siglo XIX, muchos lideraron las independencias americanas" },
+      { question: "Propiedad vinculada", answer: "Tierras ligadas a familias nobles o a la Iglesia que no podían venderse ni dividirse" },
+      { question: "Latifundio", answer: "Gran propiedad agrícola, común en el sur de España, con baja productividad y condiciones precarias para los campesinos" },
+      { question: "Carlismo", answer: "Movimiento tradicionalista y absolutista que apoyaba a Carlos María Isidro como rey legítimo frente a Isabel II" },
+      { question: "Diputados cuneros", answer: "Parlamentarios elegidos en provincias donde no residían, impuestos por el gobierno" },
+      { question: "Gloriosa", answer: "Revolución de 1868 que provocó el exilio de Isabel II y dio inicio al Sexenio Democrático" },
+      { question: "Cantonalismo", answer: "Movimiento que defendía la autonomía de las ciudades o cantones, especialmente en la I República" },
+      { question: "Federalismo", answer: "Propuesta de organización del Estado que otorga autonomía a las regiones dentro de un marco común" },
+      { question: "Junta Suprema de Canarias", answer: "Órgano creado en las islas durante la Guerra de Independencia para organizar la defensa y el gobierno local" },
+      { question: "Guerra del 98", answer: "Conflicto entre España y EE. UU. en el que España perdió Cuba, Puerto Rico y Filipinas" },
+      { question: "Caciquismo", answer: "Control político local ejercido por personas poderosas (caciques), que manipulaban elecciones y decisiones" },
+      { question: "Oligarquía", answer: "Gobierno controlado por una minoría poderosa, especialmente económica o socialmente" },
+      { question: "Regeneracionismo", answer: "Movimiento intelectual y político que buscaba modernizar España tras el desastre del 98" },
+      { question: "Fueros", answer: "Conjunto de leyes y privilegios históricos propios de algunas regiones, como Navarra o el País Vasco" },
+      { question: "Regionalismo", answer: "Reivindicación política y cultural de la identidad y autonomía de una región dentro del Estado español" },
+      { question: "Sindicalismo católico", answer: "Movimiento obrero vinculado a la Iglesia, que defendía los derechos de los trabajadores desde una visión cristiana" },
+      { question: "Sociedades de Socorros Mutuos", answer: "Asociaciones de trabajadores para ayudarse entre sí en caso de enfermedad, paro o muerte" },
+      { question: "Éxodo rural", answer: "Migración masiva del campo a la ciudad en busca de trabajo, especialmente en zonas industriales" },
+      { question: "Colonias industriales", answer: "Conjuntos de fábricas y viviendas construidas por empresarios para alojar a sus trabajadores" },
+      { question: "Indiano", answer: "Emigrante canario o peninsular que regresaba enriquecido de América" },
+      { question: "Puertos Francos", answer: "Estatus especial de ciertos puertos, como los canarios, que permitía el comercio sin pagar ciertos impuestos" },
+      { question: "Economía portuaria", answer: "Actividades económicas centradas en el comercio marítimo, especialmente importante en las islas Canarias" },
+      { question: "Africanistas", answer: "Militares partidarios de la intervención y conquista en Marruecos, donde hicieron gran parte de su carrera" },
+      { question: "Pistolerismo", answer: "Violencia entre sindicalistas y patronos en Cataluña, con asesinatos mutuos en los años 20" },
+      { question: "Instituto Nacional de Previsión", answer: "Primer organismo público que ofreció seguros sociales, antecesor de la Seguridad Social" },
+      { question: "Redención en metálico", answer: "Pago que permitía a los varones no ir al servicio militar obligatorio" },
+      { question: "Semana Trágica", answer: "Revuelta en Barcelona en 1909 contra el envío de tropas a Marruecos; combinó protesta social y anticlerical" },
+      { question: "Guardia Civil", answer: "Cuerpo armado de seguridad creado en el siglo XIX para mantener el orden en zonas rurales" },
+      { question: "Germanófilo", answer: "Persona que simpatizaba con Alemania durante la Primera Guerra Mundial" },
+      { question: "Aliadófilo", answer: "Persona que apoyaba a los países aliados (Francia, Reino Unido…) durante la Primera Guerra Mundial" },
+      { question: "Institución Libre de Enseñanza", answer: "Proyecto educativo progresista e innovador, laico y abierto a la ciencia y la cultura europea" },
+      { question: "“Era de las Canary Islands”", answer: "Época de fuerte presencia británica en el comercio y vida económica de Canarias" },
+      { question: "Cambullón", answer: "Comercio informal o contrabando que realizaban trabajadores canarios con los barcos extranjeros" },
+      { question: "División provincial canaria", answer: "Creación de las dos provincias canarias, Santa Cruz de Tenerife y Las Palmas, en 1927" },
+      { question: "Ley de Cabildos", answer: "Norma que estableció los cabildos como órganos de gobierno insular en Canarias" },
+      { question: "Misiones pedagógicas", answer: "Proyectos culturales que llevaban libros, teatro y cine a los pueblos más aislados durante la República" },
+      { question: "Secularización", answer: "Proceso por el cual el Estado se separa de la Iglesia, promoviendo la laicidad en la educación y la vida pública" },
+      { question: "Revolución de 1934", answer: "Levantamiento contra el gobierno del Bienio Conservador, especialmente fuerte en Asturias y Cataluña" },
+      { question: "Estatuto de Autonomía", answer: "Ley que otorga autogobierno a una región, como ocurrió con Cataluña y el País Vasco en la República" },
+      { question: "Masonería", answer: "Sociedad secreta con influencia política e intelectual, muy presente en sectores republicanos" },
+      { question: "Falangismo", answer: "Ideología de la Falange, partido fascista español fundado por José Antonio Primo de Rivera" },
+      { question: "Guardia de Asalto", answer: "Fuerza policial republicana creada para sustituir a la Guardia Civil en tareas de orden público" },
+      { question: "Brigadas Internacionales", answer: "Voluntarios de muchos países que lucharon en el bando republicano durante la Guerra Civil" },
+      { question: "Lazareto de Gando", answer: "Centro de cuarentena en Gran Canaria para controlar enfermedades en viajeros y mercancías" },
+      { question: "Leyes Fundamentales del Reino", answer: "Conjunto de normas que organizaban el régimen franquista, sustituyendo a una Constitución democrática" },
+      { question: "Sección Femenina", answer: "Rama femenina de la Falange, encargada de educar a las mujeres en los valores tradicionales del franquismo" },
+      { question: "Sindicato vertical", answer: "Organización que agrupaba a empresarios y trabajadores bajo control del Estado, sin libertad sindical" },
+      { question: "NO-DO", answer: "Noticiario oficial del régimen proyectado en cines, usado como medio de propaganda" },
+      { question: "Opus Dei", answer: "Organización católica con fuerte influencia en la política y economía del franquismo, sobre todo en los años 60" },
+      { question: "Estraperlo", answer: "Comercio ilegal de productos básicos durante el racionamiento de la posguerra" },
+      { question: "Autarquía", answer: "Política económica de autosuficiencia que evitaba el comercio exterior, impuesta por el franquismo en sus primeros años" },
+      { question: "Bases de Morón de la Frontera y Rota", answer: "Instalaciones militares cedidas a Estados Unidos a cambio de ayuda económica y militar" },
+      { question: "Brigadas del amanecer", answer: "Grupos policiales represivos del régimen que actuaban de madrugada para detener a opositores" },
+      { question: "Maquis", answer: "Guerrilleros antifranquistas que actuaban en zonas rurales tras el final de la Guerra Civil" },
+      { question: "Radio España Independiente o “La Pirenaica”", answer: "Emisora clandestina del PCE que emitía desde el extranjero contra el régimen" },
+      { question: "Platajunta", answer: "Plataforma unitaria de oposición al franquismo que reunía a diversos grupos políticos y sindicales" },
+      { question: "“Contubernio” de Múnich", answer: "Nombre despectivo que usó el régimen para referirse a un congreso opositor celebrado en Alemania en 1962" },
+      { question: "Comisiones Obreras (CCOO)", answer: "Movimiento sindical clandestino que defendía los derechos de los trabajadores desde dentro del sistema" },
+      { question: "“Milagro” económico español", answer: "Rápido crecimiento económico entre 1959 y 1973 tras el abandono de la autarquía" },
+      { question: "Baby Boom", answer: "Aumento demográfico de nacimientos en los años 60, que también ocurrió en España" },
+      { question: "Territorios no autónomos de Sahara y Guinea Española", answer: "Colonias africanas bajo control español hasta su descolonización en los años 60 y 70" },
+      { question: "Sindicalismo universitario", answer: "Movimiento de protesta estudiantil contra el régimen, especialmente en los años 60 y 70" },
+      { question: "Almacenes Fyffes", answer: "Antigua instalación británica en Canarias vinculada al comercio del plátano y símbolo de la influencia exterior" },
+      { question: "Mando Económico de Canarias", answer: "Organismo militar con poder civil y económico en Canarias durante la posguerra" },
+      { question: "Colonia Agrícola Penitenciaria de Tefía", answer: "Campo de trabajo forzado en Fuerteventura para presos políticos y homosexuales" },
+      { question: "Sucesos de Sardina", answer: "Represión en Gran Canaria en los años 70 tras protestas vecinales contra el régimen" },
+      { question: "MPAIAC", answer: "Movimiento independentista canario fundado en el exilio, que buscaba la autodeterminación de las islas" },
+      { question: "Boom turístico", answer: "Explosión del turismo en los años 60 y 70, que transformó la economía y sociedad de muchas zonas, como Canarias" },
+      { question: "FOS BUCRAA", answer: "Mina de fosfatos en el Sahara Occidental explotada por España, importante para la economía franquista" },
+      { question: "“Atado y bien atado”", answer: "Expresión de Franco para indicar que dejaba todo preparado para que el franquismo continuara tras su muerte" },
+      { question: "El Búnker", answer: "Nombre dado a los sectores más inmovilistas del franquismo que se resistían a cualquier cambio democrático" },
+      { question: "Marcha Verde", answer: "Movilización organizada por Marruecos en 1975 para ocupar el Sáhara Occidental, entonces territorio español" },
+      { question: "Garrote vil", answer: "Instrumento de ejecución usado en España hasta 1974, símbolo de la represión franquista" },
+      { question: "“Los grises”", answer: "Apodo popular de la Policía Armada durante el franquismo, por el color de su uniforme" },
+      { question: "La Brigada de Investigación Social", answer: "Policía política del régimen encargada de vigilar y reprimir a opositores" },
+      { question: "Despachos laboralistas", answer: "Oficinas de abogados vinculados al movimiento obrero que defendían legalmente a los trabajadores" },
+      { question: "Años de plomo (violencia política)", answer: "Etapa marcada por atentados de grupos terroristas y violencia política (ETA, GRAPO, extrema derecha)" },
+      { question: "“Amnistía y libertad”", answer: "Lema de la oposición democrática que exigía la excarcelación de presos políticos tras la muerte de Franco" },
+      { question: "Estado de las autonomías", answer: "Modelo territorial aprobado en la Constitución de 1978 que reconoce y organiza comunidades autónomas" },
+      { question: "Coordinadora Feminista", answer: "Movimiento que agrupó colectivos feministas para luchar por la igualdad durante la Transición" },
+      { question: "Curas obreros", answer: "Sacerdotes comprometidos con la causa obrera y contrarios al franquismo, activos sobre todo en los años 70" },
+      { question: "Movimiento estudiantil", answer: "Protestas de estudiantes universitarios por la libertad, la democracia y la mejora de la educación" },
+      { question: "Referéndum de la OTAN", answer: "Consulta celebrada en 1986 sobre la permanencia de España en la OTAN; ganó el “sí” por estrecho margen" },
+      { question: "Capitalidad compartida", answer: "Acuerdo por el cual Santa Cruz de Tenerife y Las Palmas de Gran Canaria comparten la capitalidad de Canarias" },
+      { question: "Insularismo", answer: "Tendencia a priorizar los intereses de cada isla frente a una visión unitaria del archipiélago" },
+      { question: "“Octava Isla”", answer: "Expresión usada para referirse simbólicamente a la comunidad canaria emigrada, sobre todo a Venezuela" }
+    ];
+
+    // =================== ESTADO DE LA APP ===================
+    const state = {
+      allCards: [],         // Todas las flashcards cargadas
+      currentDeck: [],      // Las 12 cartas actuales
+      knownCards: new Set(),// Índices de cartas conocidas (verde)
+      unknownCards: new Set(),// Índices de cartas marcadas como desconocidas (rojo)
+      knownCount: 0         // Número de cartas conocidas
+    };
+
+    // =================== ELEMENTOS DOM ===================
+    const grid = document.getElementById('flashcards-grid');
+    const progressBar = document.getElementById('progress-bar');
+    // const progressText = document.getElementById('progress-text');
+    const btnReload = document.getElementById('btn-reload');
+
+    // =================== FUNCIONES PRINCIPALES ===================
+    function initApp() {
+      loadFlashcards();
+      showNewDeck();
+    }
+
+    function loadFlashcards() {
+      state.allCards = FLASHCARDS_DATA.slice();
+    }
+
+    function getRandomFlashcards(allCards, count, seed = null) {
+      let arr = allCards.slice();
+      if (seed !== null) {
+        let rng = mulberry32(seed);
+        for (let i = arr.length - 1; i > 0; i--) {
+          let j = Math.floor(rng() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      } else {
+        for (let i = arr.length - 1; i > 0; i--) {
+          let j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+      return arr.slice(0, count);
+    }
+
+    function mulberry32(a) {
+      return function() {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      }
+    }
+
+    function showNewDeck() {
+      state.currentDeck = getRandomFlashcards(state.allCards, TOTAL_CARDS);
+      state.knownCards.clear();
+      state.unknownCards.clear();
+      state.knownCount = 0;
+      renderGrid();
+      updateProgress();
+    }
+
+    function renderGrid() {
+      grid.innerHTML = '';
+      state.currentDeck.forEach((card, idx) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'flashcard';
+        cardEl.setAttribute('tabindex', '0');
+        cardEl.setAttribute('aria-label', `Carta ${idx+1}`);
+        cardEl.innerHTML = `
+          <div class="flashcard-inner">
+            <div class="flashcard-front"><span class="flashcard-concept">${card.question}</span></div>
+            <div class="flashcard-back"><span class="flashcard-definition">${card.answer}</span></div>
+          </div>
+        `;
+        cardEl.addEventListener('click', () => handleCardClick(idx, cardEl));
+        cardEl.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick(idx, cardEl);
+          }
+        });
+        grid.appendChild(cardEl);
+      });
+    }
+
+    function handleCardClick(index, cardEl) {
+      if (state.knownCards.has(index)) {
+        cardEl.classList.remove('known');
+        cardEl.classList.add('unknown');
+        cardEl.classList.toggle('flipped');
+        state.knownCards.delete(index);
+        state.unknownCards.add(index);
+        state.knownCount = state.knownCards.size;
+      } else if (state.unknownCards.has(index)) {
+        cardEl.classList.remove('unknown');
+        cardEl.classList.remove('flipped');
+        state.unknownCards.delete(index);
+        state.knownCount = state.knownCards.size;
+      } else {
+        cardEl.classList.add('flipped');
+        cardEl.classList.add('known');
+        state.knownCards.add(index);
+        state.knownCount = state.knownCards.size;
+      }
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const pct = Math.round((state.knownCount / TOTAL_CARDS) * 100);
+      progressBar.style.width = pct + '%';
+      // progressText.textContent = `${pct}% conocidas`;
+    }
+
+    btnReload.addEventListener('click', showNewDeck);
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
