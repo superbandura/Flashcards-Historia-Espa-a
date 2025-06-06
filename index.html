@@ -299,6 +299,7 @@
       knownCount: 0,        // Número de cartas conocidas
       seenCards: new Set(), // Índices de cartas ya estudiadas
       globalUnknown: new Set(), // Índices marcados en rojo de forma persistente
+      globalKnown: new Set(),   // Índices marcados en verde de forma persistente
       showCounts: {},       // Veces que ha aparecido cada carta
       prioritizeUnknown: false
     };
@@ -329,6 +330,7 @@
     function loadPersistentState() {
       state.seenCards = new Set();
       state.globalUnknown = new Set();
+      state.globalKnown = new Set();
       state.showCounts = {};
     }
 
@@ -436,6 +438,7 @@
         cardEl.classList.toggle('flipped');
         state.knownCards.delete(index);
         state.unknownCards.add(index);
+        state.globalKnown.delete(state.currentDeck[index].id);
         state.globalUnknown.add(state.currentDeck[index].id);
         savePersistentState();
         state.knownCount = state.knownCards.size;
@@ -444,6 +447,7 @@
         cardEl.classList.remove('flipped');
         state.unknownCards.delete(index);
         state.globalUnknown.delete(state.currentDeck[index].id);
+        state.globalKnown.delete(state.currentDeck[index].id);
         savePersistentState();
         state.knownCount = state.knownCards.size;
       } else {
@@ -451,6 +455,7 @@
         cardEl.classList.add('known');
         state.knownCards.add(index);
         state.globalUnknown.delete(state.currentDeck[index].id);
+        state.globalKnown.add(state.currentDeck[index].id);
         savePersistentState();
         state.knownCount = state.knownCards.size;
       }
@@ -459,7 +464,7 @@
 
     function updateGlobalProgress() {
       const total = state.allCards.length;
-      const known = state.seenCards.size - state.globalUnknown.size;
+      const known = state.globalKnown.size;
       const unknown = state.globalUnknown.size;
       const knownPct = (known / total) * 100;
       const unknownPct = (unknown / total) * 100;
