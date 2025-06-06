@@ -43,6 +43,11 @@
       line-height: 24px;
       z-index: 2;
     }
+    #global-progress {
+      text-align: center;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
     main {
       display: flex;
       flex-direction: column;
@@ -168,6 +173,7 @@
     <div class="progress-container">
       <div class="progress-bar" id="progress-bar"></div>
     </div>
+    <p id="global-progress">Estudiado: 0/0 (0%)</p>
   </header>
 
   <main>
@@ -290,7 +296,9 @@
       currentDeck: [],      // Las 12 cartas actuales
       knownCards: new Set(),// Índices de cartas conocidas (verde)
       unknownCards: new Set(),// Índices de cartas marcadas como desconocidas (rojo)
-      knownCount: 0         // Número de cartas conocidas
+      knownCount: 0,        // Número de cartas conocidas
+      seenCards: new Set(), // Índices de cartas ya estudiadas
+      globalUnknown: new Set() // Índices marcados en rojo de forma persistente
     };
 
     // =================== ELEMENTOS DOM ===================
@@ -298,15 +306,29 @@
     const progressBar = document.getElementById('progress-bar');
     // const progressText = document.getElementById('progress-text');
     const btnReload = document.getElementById('btn-reload');
+    const globalProgressText = document.getElementById('global-progress');
 
     // =================== FUNCIONES PRINCIPALES ===================
     function initApp() {
       loadFlashcards();
+      loadPersistentState();
       showNewDeck();
     }
 
     function loadFlashcards() {
-      state.allCards = FLASHCARDS_DATA.slice();
+      state.allCards = FLASHCARDS_DATA.map((c, i) => ({ id: i, ...c }));
+    }
+
+    function loadPersistentState() {
+      const seen = JSON.parse(localStorage.getItem('seenCards') || '[]');
+      const unknown = JSON.parse(localStorage.getItem('unknownCards') || '[]');
+      state.seenCards = new Set(seen);
+      state.globalUnknown = new Set(unknown);
+    }
+
+    function savePersistentState() {
+      localStorage.setItem('seenCards', JSON.stringify(Array.from(state.seenCards)));
+      localStorage.setItem('unknownCards', JSON.stringify(Array.from(state.globalUnknown)));
     }
 
     function getRandomFlashcards(allCards, count, seed = null) {
@@ -335,13 +357,40 @@
       }
     }
 
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function selectNextDeck() {
+      const total = state.allCards.length;
+      const unknown = shuffle(Array.from(state.globalUnknown));
+      const unseen = shuffle(state.allCards.map((_, i) => i).filter(i => !state.seenCards.has(i)));
+      const rest = shuffle(state.allCards.map((_, i) => i));
+      const deck = [];
+      for (const list of [unknown, unseen, rest]) {
+        for (const idx of list) {
+          if (deck.length >= TOTAL_CARDS) break;
+          if (!deck.includes(idx)) deck.push(idx);
+        }
+        if (deck.length >= TOTAL_CARDS) break;
+      }
+      deck.forEach(i => state.seenCards.add(i));
+      savePersistentState();
+      return deck.map(i => state.allCards[i]);
+    }
+
     function showNewDeck() {
-      state.currentDeck = getRandomFlashcards(state.allCards, TOTAL_CARDS);
+      state.currentDeck = selectNextDeck();
       state.knownCards.clear();
       state.unknownCards.clear();
       state.knownCount = 0;
       renderGrid();
       updateProgress();
+      updateGlobalProgress();
     }
 
     function renderGrid() {
@@ -357,6 +406,9 @@
             <div class="flashcard-back"><span class="flashcard-definition">${card.answer}</span></div>
           </div>
         `;
+        if (state.globalUnknown.has(card.id)) {
+          cardEl.classList.add('unknown');
+        }
         cardEl.addEventListener('click', () => handleCardClick(idx, cardEl));
         cardEl.addEventListener('keydown', e => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -375,25 +427,37 @@
         cardEl.classList.toggle('flipped');
         state.knownCards.delete(index);
         state.unknownCards.add(index);
+        state.globalUnknown.add(state.currentDeck[index].id);
+        savePersistentState();
         state.knownCount = state.knownCards.size;
       } else if (state.unknownCards.has(index)) {
         cardEl.classList.remove('unknown');
         cardEl.classList.remove('flipped');
         state.unknownCards.delete(index);
+        state.globalUnknown.delete(state.currentDeck[index].id);
+        savePersistentState();
         state.knownCount = state.knownCards.size;
       } else {
         cardEl.classList.add('flipped');
         cardEl.classList.add('known');
         state.knownCards.add(index);
+        state.globalUnknown.delete(state.currentDeck[index].id);
+        savePersistentState();
         state.knownCount = state.knownCards.size;
       }
       updateProgress();
+      updateGlobalProgress();
     }
 
     function updateProgress() {
       const pct = Math.round((state.knownCount / TOTAL_CARDS) * 100);
       progressBar.style.width = pct + '%';
       // progressText.textContent = `${pct}% conocidas`;
+    }
+
+    function updateGlobalProgress() {
+      const pct = Math.round((state.seenCards.size / state.allCards.length) * 100);
+      globalProgressText.textContent = `Estudiado: ${state.seenCards.size}/${state.allCards.length} (${pct}%)`;
     }
 
     btnReload.addEventListener('click', showNewDeck);
