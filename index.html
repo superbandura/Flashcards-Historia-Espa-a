@@ -26,13 +26,6 @@
       position: relative;
       overflow: hidden;
     }
-    .progress-bar {
-      background: linear-gradient(90deg, #4caf50 60%, #81c784 100%);
-      height: 100%;
-      width: 0%;
-      border-radius: 20px 0 0 20px;
-      transition: width 0.4s;
-    }
     .progress-segment {
       position: absolute;
       top: 0;
@@ -176,9 +169,6 @@
 <body>
   <header>
     <h1>Flashcards: Historia de España</h1>
-    <div class="progress-container">
-      <div class="progress-bar" id="progress-bar"></div>
-    </div>
     <div class="progress-container" id="overall-progress">
       <div class="progress-segment known" id="segment-known"></div>
       <div class="progress-segment unknown" id="segment-unknown"></div>
@@ -315,7 +305,6 @@
 
     // =================== ELEMENTOS DOM ===================
     const grid = document.getElementById('flashcards-grid');
-    const progressBar = document.getElementById('progress-bar');
     const segmentKnown = document.getElementById('segment-known');
     const segmentUnknown = document.getElementById('segment-unknown');
     const btnReload = document.getElementById('btn-reload');
@@ -412,7 +401,6 @@
       state.unknownCards.clear();
       state.knownCount = 0;
       renderGrid();
-      updateProgress();
       updateGlobalProgress();
     }
 
@@ -465,14 +453,7 @@
         savePersistentState();
         state.knownCount = state.knownCards.size;
       }
-      updateProgress();
       updateGlobalProgress();
-    }
-
-    function updateProgress() {
-      const pct = Math.round((state.knownCount / TOTAL_CARDS) * 100);
-      progressBar.style.width = pct + '%';
-      // progressText.textContent = `${pct}% conocidas`;
     }
 
     function updateGlobalProgress() {
