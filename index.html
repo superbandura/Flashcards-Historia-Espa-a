@@ -156,6 +156,14 @@
       margin-bottom: 1.2rem;
       margin-top: 2.5rem;
     }
+    .toggle-container {
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      justify-content: center;
+    }
     .btn-reload:hover {
       background: #1565c0;
     }
@@ -174,13 +182,18 @@
       <div class="progress-bar" id="progress-bar"></div>
     </div>
     <p id="global-progress">Estudiado: 0/0 (0%)</p>
+    <div class="progress-container">
+      <div class="progress-bar" id="known-progress-bar"></div>
+    </div>
+    <p id="known-progress">Comprendidos: 0/0 (0%)</p>
+    <label class="toggle-container"><input type="checkbox" id="toggle-priority"> Priorizar no comprendidos</label>
   </header>
 
   <main>
     <div class="flashcards-grid" id="flashcards-grid">
       <!-- Las cartas se renderizan aquí dinámicamente -->
     </div>
-    <button class="btn-reload" id="btn-reload">Reiniciar</button>
+    <button class="btn-reload" id="btn-reload">Ronda</button>
   </main>
 
   <footer>
@@ -298,21 +311,30 @@
       unknownCards: new Set(),// Índices de cartas marcadas como desconocidas (rojo)
       knownCount: 0,        // Número de cartas conocidas
       seenCards: new Set(), // Índices de cartas ya estudiadas
-      globalUnknown: new Set() // Índices marcados en rojo de forma persistente
+      globalUnknown: new Set(), // Índices marcados en rojo de forma persistente
+      showCounts: {},       // Veces que ha aparecido cada carta
+      prioritizeUnknown: false
     };
 
     // =================== ELEMENTOS DOM ===================
     const grid = document.getElementById('flashcards-grid');
     const progressBar = document.getElementById('progress-bar');
-    // const progressText = document.getElementById('progress-text');
+    const knownProgressBar = document.getElementById('known-progress-bar');
     const btnReload = document.getElementById('btn-reload');
     const globalProgressText = document.getElementById('global-progress');
+    const knownProgressText = document.getElementById('known-progress');
+    const togglePriority = document.getElementById('toggle-priority');
 
     // =================== FUNCIONES PRINCIPALES ===================
     function initApp() {
       loadFlashcards();
       loadPersistentState();
+      togglePriority.checked = state.prioritizeUnknown;
+      togglePriority.addEventListener('change', () => {
+        state.prioritizeUnknown = togglePriority.checked;
+      });
       showNewDeck();
+      updateKnownProgress();
     }
 
     function loadFlashcards() {
@@ -322,13 +344,16 @@
     function loadPersistentState() {
       const seen = JSON.parse(localStorage.getItem('seenCards') || '[]');
       const unknown = JSON.parse(localStorage.getItem('unknownCards') || '[]');
+      const counts = JSON.parse(localStorage.getItem('showCounts') || '{}');
       state.seenCards = new Set(seen);
       state.globalUnknown = new Set(unknown);
+      state.showCounts = counts;
     }
 
     function savePersistentState() {
       localStorage.setItem('seenCards', JSON.stringify(Array.from(state.seenCards)));
       localStorage.setItem('unknownCards', JSON.stringify(Array.from(state.globalUnknown)));
+      localStorage.setItem('showCounts', JSON.stringify(state.showCounts));
     }
 
     function getRandomFlashcards(allCards, count, seed = null) {
@@ -366,19 +391,27 @@
     }
 
     function selectNextDeck() {
-      const total = state.allCards.length;
-      const unknown = shuffle(Array.from(state.globalUnknown));
-      const unseen = shuffle(state.allCards.map((_, i) => i).filter(i => !state.seenCards.has(i)));
-      const rest = shuffle(state.allCards.map((_, i) => i));
-      const deck = [];
-      for (const list of [unknown, unseen, rest]) {
-        for (const idx of list) {
-          if (deck.length >= TOTAL_CARDS) break;
-          if (!deck.includes(idx)) deck.push(idx);
-        }
-        if (deck.length >= TOTAL_CARDS) break;
+      const indices = state.allCards.map((_, i) => i);
+      let ordered = [];
+      if (state.prioritizeUnknown) {
+        const unknown = shuffle(Array.from(state.globalUnknown));
+        const others = indices.filter(i => !state.globalUnknown.has(i));
+        others.sort((a, b) => (state.showCounts[a] || 0) - (state.showCounts[b] || 0));
+        ordered = unknown.concat(others);
+      } else {
+        ordered = indices.slice().sort((a, b) => (state.showCounts[a] || 0) - (state.showCounts[b] || 0));
       }
-      deck.forEach(i => state.seenCards.add(i));
+
+      const deck = [];
+      for (const idx of ordered) {
+        if (deck.length >= TOTAL_CARDS) break;
+        if (!deck.includes(idx)) deck.push(idx);
+      }
+
+      deck.forEach(i => {
+        state.seenCards.add(i);
+        state.showCounts[i] = (state.showCounts[i] || 0) + 1;
+      });
       savePersistentState();
       return deck.map(i => state.allCards[i]);
     }
@@ -391,6 +424,7 @@
       renderGrid();
       updateProgress();
       updateGlobalProgress();
+      updateKnownProgress();
     }
 
     function renderGrid() {
@@ -406,9 +440,6 @@
             <div class="flashcard-back"><span class="flashcard-definition">${card.answer}</span></div>
           </div>
         `;
-        if (state.globalUnknown.has(card.id)) {
-          cardEl.classList.add('unknown');
-        }
         cardEl.addEventListener('click', () => handleCardClick(idx, cardEl));
         cardEl.addEventListener('keydown', e => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -447,6 +478,7 @@
       }
       updateProgress();
       updateGlobalProgress();
+      updateKnownProgress();
     }
 
     function updateProgress() {
@@ -458,6 +490,13 @@
     function updateGlobalProgress() {
       const pct = Math.round((state.seenCards.size / state.allCards.length) * 100);
       globalProgressText.textContent = `Estudiado: ${state.seenCards.size}/${state.allCards.length} (${pct}%)`;
+    }
+
+    function updateKnownProgress() {
+      const known = state.allCards.length - state.globalUnknown.size;
+      const pct = Math.round((known / state.allCards.length) * 100);
+      knownProgressBar.style.width = pct + '%';
+      knownProgressText.textContent = `Comprendidos: ${known}/${state.allCards.length} (${pct}%)`;
     }
 
     btnReload.addEventListener('click', showNewDeck);
